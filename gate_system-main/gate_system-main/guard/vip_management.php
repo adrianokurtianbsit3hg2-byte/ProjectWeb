@@ -1,9 +1,6 @@
 <?php
 session_start();
-if (!isset($_SESSION['guard_logged_in'])) {
-    header("Location: ../index.php");
-    exit;
-}
+
 ?>
 <style>
 .vip-container {
@@ -407,4 +404,5 @@ function logoutVIP(entryKey) {
 
 loadActiveVIPs();
 document.getElementById('refreshList').addEventListener('click', loadActiveVIPs);
+
 </script>
