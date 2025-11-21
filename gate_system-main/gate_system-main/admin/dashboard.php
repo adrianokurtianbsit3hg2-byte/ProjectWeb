@@ -87,9 +87,6 @@ function formatTime($time)
     return sprintf('%d:%s %s', $hours, $minutes, $ampm);
 }
 ?>
-
-<!DOCTYPE html>
-<html lang="en">
     <style>
         body {
             font-family: "Inter", sans-serif;
