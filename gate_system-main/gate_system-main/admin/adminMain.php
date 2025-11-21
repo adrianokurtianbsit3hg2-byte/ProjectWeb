@@ -1,283 +1,365 @@
+<?php
+session_start();
+include("../config.php");
+include("../firebaseRDB.php");
+
+if (!isset($_SESSION['staff_logged_in'])) {
+    header("Location: ../index.php");
+    exit;
+}
+
+$db = new firebaseRDB($databaseURL);
+
+// Get selected campus from query parameter
+$selectedCampus = $_GET['campus'] ?? 'Main';
+
+// Retrieve all data
+$studentsData = json_decode($db->retrieve("Student"), true) ?? [];
+$staffData = json_decode($db->retrieve("Staff"), true) ?? [];
+$guardsData = json_decode($db->retrieve("Guard"), true) ?? [];
+$entriesData = json_decode($db->retrieve("Entry_log/Student"), true) ?? [];
+
+// Filter students by campus
+$students = [];
+foreach ($studentsData as $key => $student) {
+    if (isset($student['campus']) && strcasecmp(trim($student['campus']), trim($selectedCampus)) === 0) {
+        $students[$key] = $student;
+    }
+}
+
+// Filter staff by campus
+$staff = [];
+foreach ($staffData as $key => $s) {
+    if (isset($s['campus']) && strcasecmp(trim($s['campus']), trim($selectedCampus)) === 0) {
+        $staff[$key] = $s;
+    }
+}
+
+// Filter guards by campus
+$guards = [];
+foreach ($guardsData as $key => $g) {
+    if (isset($g['campus']) && strcasecmp(trim($g['campus']), trim($selectedCampus)) === 0) {
+        $guards[$key] = $g;
+    }
+}
+
+$totalStudents = count($students);
+$totalStaff = count($staff);
+$totalGuards = count($guards);
+
+// Filter entries by campus
+$entries = [];
+foreach ($entriesData as $key => $entry) {
+    if (isset($entry['campus']) && strcasecmp(trim($entry['campus']), trim($selectedCampus)) === 0) {
+        $entries[$key] = $entry;
+    }
+}
+
+$totalTimeIn = $totalTimeOut = $totalViolations = 0;
+$recentLogs = [];
+
+foreach ($entries as $key => $entry) {
+    if (isset($entry['time_in'])) $totalTimeIn++;
+    if (isset($entry['time_out'])) $totalTimeOut++;
+    if (isset($entry['violation']) && $entry['violation'] !== 'None') $totalViolations++;
+    $recentLogs[] = array_merge($entry, ['key' => $key]);
+}
+
+usort($recentLogs, function ($a, $b) {
+    $timeA = $a['time_out'] ?? $a['time_in'] ?? '00:00:00';
+    $timeB = $b['time_out'] ?? $b['time_in'] ?? '00:00:00';
+    $dateA = ($a['date'] ?? '2000-01-01') . ' ' . $timeA;
+    $dateB = ($b['date'] ?? '2000-01-01') . ' ' . $timeB;
+    return strcmp($dateB, $dateA);
+});
+
+$recentLogs = array_slice($recentLogs, 0, 10);
+
+function formatTime($time)
+{
+    if (empty($time) || $time === 'N/A') return 'N/A';
+    $parts = explode(':', $time);
+    $hours = (int)$parts[0];
+    $minutes = $parts[1] ?? '00';
+    $ampm = $hours >= 12 ? 'PM' : 'AM';
+    $hours = $hours % 12;
+    if ($hours === 0) $hours = 12;
+    return sprintf('%d:%s %s', $hours, $minutes, $ampm);
+}
+?>
+
 <!DOCTYPE html>
 <html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Side</title>
-
-    <link rel="stylesheet" href="../assets/css/global.css?v=1">
-    <link rel="stylesheet" href="../assets/css/admin.css?v=1">
-
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
     <style>
-        .campus-select-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        body {
+            font-family: "Inter", sans-serif;
+            background: #f0f2f5;
+            color: #333;
+            margin: 0;
         }
 
-        .campus-label {
+        /* Layout */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Titles */
+        h1 {
+            font-size: 26px;
+            color: #b10312;
+            margin-bottom: 25px;
+            font-weight: 700;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 10px;
+        }
+
+        h3 {
+            color: black !important;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        /* Sections */
+        .section {
+            margin-bottom: 20px;
+        }
+
+        /* Cards Grid */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 10px;
+        }
+
+        /* Card */
+        .card {
+            background: #ffffff;
+            border-radius: 18px;
+            padding: 10px 28px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.07);
+            border: 1px solid #ececec;
+            transition: all 0.25s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 10px 32px rgba(177, 3, 18, 0.18);
+            border-color: #b10312;
+        }
+
+        /* Accent Bar */
+        .card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 6px;
+            height: 100%;
+            background: #b10312;
+            border-radius: 18px 0 0 18px;
+        }
+
+        /* Card Icon */
+        .card-icon {
+            font-size: 40px;
+            color: #b10312;
+            margin-bottom: 12px;
+        }
+
+        /* Card Label */
+        .card h3 {
+            margin: 0 0 12px 0;
+            font-size: 15px;
+            color: #555;
             font-weight: 600;
-            color: #a60212;
-            cursor: pointer;
-            transition: color 0.2s;
         }
 
-        .campus-label i {
-            font-size: 18px;
-        }
-
-        .campus-label:hover {
-            color: #fff;
-        }
-
-        select#campusSelect {
-            padding: 6px 12px;
+        /* Card Number */
+        .card .number {
+            font-size: 40px;
             font-weight: 800;
-            font-size: 18px;
-            border-radius: 8px;
-            border: none;
-            background-color: #a60212;
-            color: #f5ab29;
-            font-weight: 500;
-            outline: none;
-            cursor: pointer;
-            transition: all 0.2s;
+            color: #b10312;
+            margin: 0;
         }
 
-        select#campusSelect:hover {
-            background-color: #8b0110;
+        /* Table */
+        .table-container {
+            background: #ffffff;
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.07);
+            border: 1px solid #e8e8e8;
         }
 
-        select#campusSelect:focus {
-            box-shadow: 0 0 0 2px rgba(245, 171, 41, 0.3);
+        /* Table headings */
+        table {
+            width: 100%;
+            border-collapse: collapse;
         }
 
-        select#campusSelect option {
-            background-color: #a60212;
-            color: #f5ab29;
-            padding: 8px;
+        th {
+            background: #b10312;
+            color: #ffffff;
+            padding: 16px 12px;
+            text-align: left;
+            font-size: 13.5px;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 14px 12px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 14px;
+        }
+
+        /* Table Row Hover */
+        tr:hover {
+            background: #fff4f5;
+        }
+
+        /* Badges */
+        .badge {
+            padding: 6px 14px;
+            border-radius: 25px;
+            font-size: 11.5px;
+            font-weight: 600;
+            display: inline-block;
+            letter-spacing: 0.4px;
+        }
+
+        .badge-in {
+            background: #e8f7ee;
+            color: #1b8d34;
+        }
+
+        .badge-out {
+            background: #fff1db;
+            color: #d46a00;
+        }
+
+        /* Violations */
+        .violation {
+            color: #d32f2f;
+            font-weight: 700;
+        }
+
+        .no-violation {
+            color: #2e7d32;
+            font-weight: 700;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 45px;
+            color: #777;
+            font-size: 15px;
+        }
+
+        /* Responsive */
+        @media(max-width:768px) {
+            h1 {
+                font-size: 20px;
+            }
+
+            .card .number {
+                font-size: 32px;
+            }
         }
     </style>
-</head>
 
-<body>
-    <!-- Sidebar -->
-    <div class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <img src="../assets/images/BULSU WATERMARK.png" alt="BULSU Logo">
-            <span class="sidebar-title">Gate System</span>
-        </div>
-        <div class="nav-menu">
-            <div class="nav-link active" data-tab="dashboard">
-                <img src="../assets/images/dashboard icon.png" alt="">
-                <span class="nav-text">Dashboard</span>
-            </div>
-            <div class="nav-link" data-tab="logs">
-                <img src="../assets/images/history icon.png" alt="">
-                <span class="nav-text">Logs</span>
-            </div>
-            <div class="nav-link" data-tab="reports">
-                <img src="../assets/images/reports icon.png" alt="">
-                <span class="nav-text">Reports</span>
-            </div>
-            <div class="nav-link" data-tab="alerts">
-                <img src="../assets/images/alert icon.png" alt="">
-                <span class="nav-text">Alerts</span>
-            </div>
-            <div class="nav-link" data-tab="staff">
-                <img src="../assets/images/user icon.png" alt="">
-                <span class="nav-text">Staff Management</span>
+    <div class="container">
+
+        <div class="section">
+            <h1><i class="fas fa-users"></i> User Overview - <?php echo htmlspecialchars($selectedCampus); ?> Campus</h1>
+            <div class="cards-grid">
+                <div class="card">
+                    <div class="card-icon"><i class="fas fa-user-graduate"></i></div>
+                    <h3>Total Students</h3>
+                    <p class="number"><?php echo $totalStudents; ?></p>
+                </div>
+                <div class="card">
+                    <div class="card-icon"><i class="fas fa-chalkboard-teacher"></i></div>
+                    <h3>Total Staff</h3>
+                    <p class="number"><?php echo $totalStaff; ?></p>
+                </div>
+                <div class="card">
+                    <div class="card-icon"><i class="fas fa-shield-alt"></i></div>
+                    <h3>Total Guards</h3>
+                    <p class="number"><?php echo $totalGuards; ?></p>
+                </div>
             </div>
         </div>
+
+        <div class="section">
+            <h1><i class="fas fa-door-open"></i> Entry Overview</h1>
+            <div class="cards-grid">
+                <div class="card">
+                    <div class="card-icon"><i class="fas fa-sign-in-alt"></i></div>
+                    <h3>Total Time In</h3>
+                    <p class="number"><?php echo $totalTimeIn; ?></p>
+                </div>
+                <div class="card">
+                    <div class="card-icon"><i class="fas fa-sign-out-alt"></i></div>
+                    <h3>Total Time Out</h3>
+                    <p class="number"><?php echo $totalTimeOut; ?></p>
+                </div>
+                <div class="card">
+                    <div class="card-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                    <h3>Total Violations</h3>
+                    <p class="number"><?php echo $totalViolations; ?></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h1><i class="fas fa-history"></i> Recent Gate Logs</h1>
+            <div class="table-container">
+                <?php if (empty($recentLogs)): ?>
+                    <div class="no-data">No recent logs available for <?php echo htmlspecialchars($selectedCampus); ?> campus.</div>
+                <?php else: ?>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Student ID</th>
+                                <th>Full Name</th>
+                                <th>Action</th>
+                                <th>Time</th>
+                                <th>Campus</th>
+                                <th>Gate</th>
+                                <th>Violation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($recentLogs as $log):
+                                $action = isset($log['time_out']) ? 'Time Out' : 'Time In';
+                                $time = $log['time_out'] ?? $log['time_in'] ?? 'N/A';
+                                $violation = ($log['violation'] ?? 'None') !== 'None' ? $log['violation'] : 'None';
+                            ?>
+                                <tr>
+                                    <td><strong><?php echo htmlspecialchars($log['student_id'] ?? 'N/A'); ?></strong></td>
+                                    <td><?php echo htmlspecialchars($log['full_name'] ?? 'N/A'); ?></td>
+                                    <td>
+                                        <span class="badge <?php echo isset($log['time_out']) ? 'badge-out' : 'badge-in'; ?>">
+                                            <?php echo $action; ?>
+                                        </span>
+                                    </td>
+                                    <td><?php echo formatTime($time); ?></td>
+                                    <td><?php echo htmlspecialchars($log['campus'] ?? 'N/A'); ?></td>
+                                    <td><?php echo htmlspecialchars($log['gate_in'] ?? 'N/A'); ?></td>
+                                    <td class="<?php echo $violation !== 'None' ? 'violation' : 'no-violation'; ?>">
+                                        <?php echo htmlspecialchars($violation); ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php endif; ?>
+            </div>
+        </div>
+
     </div>
-
-    <!-- Main -->
-    <div class="main">
-        <div class="header">
-            <button class="menu-toggle" id="menuToggle">&#9776;</button>
-            <h2 id="current-tab-title">Bulacan State University Gate System</h2>
-
-            <div class="header-right">
-                <!-- Campus Select -->
-                <div class="campus-select-wrapper">
-                    <label for="campusSelect" class="campus-label">
-                        <i class="fas fa-school"></i>
-                        Campus:
-                    </label>
-                    <select id="campusSelect">
-                        <option value="main">Main</option>
-                        <option value="hagonoy">Hagonoy</option>
-                        <option value="sarmiento">Sarmiento</option>
-                        <option value="bustos">Bustos</option>
-                        <option value="sanrafael">San Rafael</option>
-                        <option value="meneses">Meneses</option>
-                    </select>
-                </div>
-
-                <!-- Profile -->
-                <div class="profile-wrapper">
-                    <button id="profileBtn" class="profile-btn">👤</button>
-                    <div id="profileDropdown" class="profile-dropdown">
-                        <div class="profile-item" onclick="logout()">Logout</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Content -->
-        <div class="content">
-            <div class="card" id="contentArea">
-                <!-- Content will be loaded here via AJAX -->
-                <div class="loading-spinner" id="loadingSpinner" style="display:none;">
-                    <i class="fas fa-spinner fa-spin"></i> Loading...
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        const sidebar = document.getElementById('sidebar');
-        const toggleBtn = document.getElementById('menuToggle');
-        const navLinks = document.querySelectorAll('.nav-link');
-        const tabTitle = document.getElementById('current-tab-title');
-        const campusSelect = document.getElementById('campusSelect');
-        const profileBtn = document.getElementById('profileBtn');
-        const profileDropdown = document.getElementById('profileDropdown');
-        const contentArea = document.getElementById('contentArea');
-        const loadingSpinner = document.getElementById('loadingSpinner');
-
-        let currentTab = 'dashboard';
-
-        function updateCampusStorage() {
-            const selectedCampus = campusSelect.options[campusSelect.selectedIndex].text;
-            sessionStorage.setItem("selectedCampus", selectedCampus);
-
-            // Automatically reload current tab content with new campus
-            loadContent(currentTab);
-        }
-
-        // Initialize campus
-        const savedCampus = sessionStorage.getItem("selectedCampus");
-        if (savedCampus) {
-            for (let i = 0; i < campusSelect.options.length; i++) {
-                if (campusSelect.options[i].text === savedCampus) {
-                    campusSelect.selectedIndex = i;
-                    break;
-                }
-            }
-        }
-
-        campusSelect.addEventListener('change', updateCampusStorage);
-
-        // Toggle sidebar
-        toggleBtn.addEventListener('click', () => {
-            sidebar.classList.toggle('collapsed');
-            if (window.innerWidth <= 768) sidebar.classList.toggle('mobile-open');
-        });
-
-        function loadContent(tab) {
-            currentTab = tab;
-
-            // Show loading spinner
-            loadingSpinner.style.display = 'block';
-            contentArea.innerHTML = '';
-            contentArea.appendChild(loadingSpinner);
-
-            // Map tab names to actual file names
-            const fileMap = {
-                'dashboard': 'dashboard.php',
-                'logs': 'logs.php',
-                'reports': 'reports.php',
-                'alerts': 'alerts.php',
-                'staff': 'staff_management.php'
-            };
-
-            // Get selected campus
-            const selectedCampus = campusSelect.options[campusSelect.selectedIndex].text;
-
-            // Prepare URL with campus parameter
-            let url = fileMap[tab] || `${tab}.php`;
-            url += `?campus=${encodeURIComponent(selectedCampus)}`;
-
-            // Fetch content
-            fetch(url)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.text();
-                })
-                .then(html => {
-                    loadingSpinner.style.display = 'none';
-                    contentArea.innerHTML = html;
-
-                    // Execute any scripts in the loaded content
-                    const scripts = contentArea.querySelectorAll('script');
-                    scripts.forEach(script => {
-                        const newScript = document.createElement('script');
-                        if (script.src) {
-                            newScript.src = script.src;
-                        } else {
-                            newScript.textContent = script.textContent;
-                        }
-                        document.body.appendChild(newScript);
-                        document.body.removeChild(newScript);
-                    });
-                })
-                .catch(error => {
-                    loadingSpinner.style.display = 'none';
-                    contentArea.innerHTML = `
-            <div style="padding: 20px; text-align: center; color: #a60212;">
-                <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 10px;"></i>
-                <h3>Error Loading Content</h3>
-                <p>${error.message}</p>
-            </div>
-        `;
-                });
-        }
-
-
-        // Navigation click handlers
-        navLinks.forEach(link => {
-            link.addEventListener('click', () => {
-                navLinks.forEach(l => l.classList.remove('active'));
-                link.classList.add('active');
-
-                const target = link.dataset.tab;
-                const tabText = link.querySelector('.nav-text').textContent;
-
-                tabTitle.textContent = tabText;
-                loadContent(target);
-
-                if (window.innerWidth <= 768) sidebar.classList.remove('mobile-open');
-            });
-        });
-
-        // Load dashboard on page load
-        loadContent('dashboard');
-
-        // Profile dropdown
-        profileBtn.addEventListener('click', () => {
-            profileDropdown.style.display = profileDropdown.style.display === 'block' ? 'none' : 'block';
-        });
-
-        window.addEventListener('click', (e) => {
-            if (!profileBtn.contains(e.target) && !profileDropdown.contains(e.target)) {
-                profileDropdown.style.display = 'none';
-            }
-        });
-
-        function logout() {
-            window.location.href = "../index.php";
-        }
-    </script>
-</body>
-
-</html>
