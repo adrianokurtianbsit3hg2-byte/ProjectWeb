@@ -2,13 +2,16 @@
 
 class firebaseRDB
 {
+    // Declare the property so PHP knows it exists
+    private string $url;
 
-    function __construct($url = null)
+    public function __construct($url = null)
     {
-        if (isset($url))
+        if (isset($url)) {
             $this->url = $url;
-        else
+        } else {
             throw new Exception("Database URL must be specified");
+        }
     }
 
     public function grab($url, $method, $par = null)
@@ -16,8 +19,9 @@ class firebaseRDB
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        if (isset($par))
+        if (isset($par)) {
             curl_setopt($ch, CURLOPT_POSTFIELDS, $par);
+        }
 
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
@@ -32,42 +36,35 @@ class firebaseRDB
     public function insert($table, $data)
     {
         $path = $this->url . "/$table.json";
-        $grab = $this->grab($path, "POST", json_encode($data));
-        return $grab;
+        return $this->grab($path, "POST", json_encode($data));
     }
 
     public function update($table, $uniqueID, $data)
     {
         $path = $this->url . "/$table/$uniqueID.json";
-        $grab = $this->grab($path, "PATCH", json_encode($data));
-        return $grab;
+        return $this->grab($path, "PATCH", json_encode($data));
     }
 
     public function delete($table, $uniqueID)
     {
         $path = $this->url . "/$table/$uniqueID.json";
-        $grab = $this->grab($path, "DELETE");
-        return $grab;
+        return $this->grab($path, "DELETE");
     }
 
     public function retrieve($dbPath, $queryKey = null, $queryType = null, $queryVal = null)
     {
+        $pars = "";
         if (isset($queryType) && isset($queryKey) && isset($queryVal)) {
             $queryVal = urlencode($queryVal);
-            if ($queryType == "EQUAL") {
+            if ($queryType === "EQUAL") {
                 $pars = "?orderBy=\"$queryKey\"&equalTo=\"$queryVal\"";
-            } elseif ($queryType == "LIKE") {
+            } elseif ($queryType === "LIKE") {
                 $pars = "?orderBy=\"$queryKey\"&startAt=\"$queryVal\"";
             }
         }
 
-        $pars = isset($pars) ? $pars : "";
         $path = $this->url . "/$dbPath.json$pars";
-        $grab = $this->grab($path, "GET");
-        return $grab;
+        return $this->grab($path, "GET");
     }
-
 }
-
-
 ?>
