@@ -3,7 +3,7 @@ session_start();
 include("../config.php");
 include("../firebaseRDB.php");
 
-if (!isset($_SESSION['staff_logged_in'])) {
+if (!isset($_SESSION['admin_logged_in'])) {
     header("Location: ../index.php");
     exit;
 }
@@ -360,3 +360,4 @@ function formatTime($time)
         </div>
 
     </div>
+
