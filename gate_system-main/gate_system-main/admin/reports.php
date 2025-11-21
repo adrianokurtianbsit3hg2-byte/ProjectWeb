@@ -2,10 +2,7 @@
 session_start();
 include("../config.php");
 include("../firebaseRDB.php");
-if (!isset($_SESSION['staff_logged_in'])) {
-    header("Location: ../index.php");
-    exit;
-}
+
 $db = new firebaseRDB($databaseURL);
 $selectedCampus = $_GET['campus'] ?? 'Main';
 
@@ -733,3 +730,4 @@ $stats = calculateStats($monthEntries);
             }
         }
     </script>
+
