@@ -184,65 +184,73 @@
         });
 
         function loadContent(tab) {
-            currentTab = tab;
+    currentTab = tab;
 
-            // Show loading spinner
-            loadingSpinner.style.display = 'block';
-            contentArea.innerHTML = '';
-            contentArea.appendChild(loadingSpinner);
+    // Show loading spinner
+    loadingSpinner.style.display = 'block';
+    contentArea.innerHTML = '';
+    contentArea.appendChild(loadingSpinner);
 
-            // Map tab names to actual file names
-            const fileMap = {
-                'dashboard': 'dashboard.php',
-                'logs': 'logs.php',
-                'reports': 'reports.php',
-                'alerts': 'alerts.php',
-                'staff': 'staff_management.php'
-            };
+    // Map tab names to actual file names
+    const fileMap = {
+        'dashboard': 'dashboard.php',
+        'logs': 'logs.php',
+        'reports': 'reports.php',
+        'alerts': 'alerts.php',
+        'staff': 'staff_management.php'
+    };
 
-            // Get selected campus
-            const selectedCampus = campusSelect.options[campusSelect.selectedIndex].text;
+    // Get selected campus
+    const selectedCampus = campusSelect.options[campusSelect.selectedIndex].text;
 
-            // Prepare URL with campus parameter
-            let url = fileMap[tab] || `${tab}.php`;
-            url += `?campus=${encodeURIComponent(selectedCampus)}`;
+    // Prepare URL with campus parameter
+    let url = fileMap[tab] || `${tab}.php`;
+    url += `?campus=${encodeURIComponent(selectedCampus)}`;
 
-            // Fetch content
-            fetch(url)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.text();
-                })
-                .then(html => {
-                    loadingSpinner.style.display = 'none';
-                    contentArea.innerHTML = html;
+    console.log('Loading URL:', url); // DEBUG
 
-                    // Execute any scripts in the loaded content
-                    const scripts = contentArea.querySelectorAll('script');
-                    scripts.forEach(script => {
-                        const newScript = document.createElement('script');
-                        if (script.src) {
-                            newScript.src = script.src;
-                        } else {
-                            newScript.textContent = script.textContent;
-                        }
-                        document.body.appendChild(newScript);
-                        document.body.removeChild(newScript);
-                    });
-                })
-                .catch(error => {
-                    loadingSpinner.style.display = 'none';
-                    contentArea.innerHTML = `
-            <div style="padding: 20px; text-align: center; color: #a60212;">
-                <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 10px;"></i>
-                <h3>Error Loading Content</h3>
-                <p>${error.message}</p>
-            </div>
-        `;
-                });
-        }
+    // Fetch content
+    fetch(url)
+        .then(response => {
+            console.log('Response status:', response.status); // DEBUG
+            console.log('Response URL:', response.url); // DEBUG
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.text();
+        })
+        .then(html => {
+            console.log('HTML length:', html.length); // DEBUG
+            console.log('First 200 chars:', html.substring(0, 200)); // DEBUG
+            
+            loadingSpinner.style.display = 'none';
+            contentArea.innerHTML = html;
+
+            // Execute any scripts in the loaded content
+            const scripts = contentArea.querySelectorAll('script');
+            scripts.forEach(script => {
+                const newScript = document.createElement('script');
+                if (script.src) {
+                    newScript.src = script.src;
+                } else {
+                    newScript.textContent = script.textContent;
+                }
+                document.body.appendChild(newScript);
+                document.body.removeChild(newScript);
+            });
+        })
+        .catch(error => {
+            console.error('Fetch error:', error); // DEBUG
+            loadingSpinner.style.display = 'none';
+            contentArea.innerHTML = `
+    <div style="padding: 20px; text-align: center; color: #a60212;">
+        <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 10px;"></i>
+        <h3>Error Loading Content</h3>
+        <p>${error.message}</p>
+    </div>
+`;
+        });
+}
 
 
         // Navigation click handlers
