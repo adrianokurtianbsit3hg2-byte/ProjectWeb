@@ -145,16 +145,6 @@ function calculateStats($entries)
 
 $stats = calculateStats($monthEntries);
 ?>
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reports - <?php echo htmlspecialchars($selectedCampus); ?></title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -411,9 +401,6 @@ $stats = calculateStats($monthEntries);
             }
         }
     </style>
-</head>
-
-<body>
     <div class="reports-container">
         <div class="page-header">
             <h1>
@@ -746,6 +733,3 @@ $stats = calculateStats($monthEntries);
             }
         }
     </script>
-</body>
-
-</html>
