@@ -1,4 +1,5 @@
-    <style>
+<script src="https://unpkg.com/html5-qrcode"></script>
+<style>
         .log-container {
             max-width: 800px;
             margin: 0 auto;
@@ -608,4 +609,5 @@
         window.addEventListener('load', () => {
             startScanner();
         });
+
     </script>
